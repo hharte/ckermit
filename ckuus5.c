@@ -95,6 +95,13 @@ extern int StartedFromDialer;
 #define putchar(x) conoc(x)
 extern int cursor_save ;
 extern bool cursorena[] ;
+
+int cktomsk(int);   /* ckokey.c */
+
+#ifdef KUI
+void shogui();      /* ckuus3.c */
+#endif /* KUI */
+
 #endif /* OS2 */
 
 /* 2010-03-09 SMS.  VAX C V3.1-051 needs <stat.h> for off_t. */
@@ -142,6 +149,11 @@ extern int carrier, cdtimo, local, quiet, backgrd, bgset, sosi, xsuspend,
 #ifdef LOCUS
 extern int locus, autolocus;
 #endif /* LOCUS */
+
+#ifdef VMS
+extern int vms_text;                           /* SET VMS_TEXT */
+#endif /* VMS */
+
 
 #ifndef NOMSEND
 extern int addlist;
@@ -2658,6 +2670,7 @@ cmddisplay(s, cx) char * s; int cx;
     return(s);
 }
 
+#ifdef COMMENT
 static VOID
 cmderr() {
     if (xcmdsrc > 0) {
@@ -2697,6 +2710,7 @@ cmderr() {
 	}
     }
 }
+#endif /* COMMENT */
 
 /*  P A R S E R  --  Top-level interactive command parser.  */
 
@@ -2927,7 +2941,9 @@ parser(m) int m;
     debug(F101,"topcmd","",topcmd);
     if (getcmd && protocol == PROTO_K &&
 	!success && hints && !interrupted && !fatalio && !xcmdsrc) {
+#ifdef COMMENT
         int x = 0;
+#endif /* COMMENT */
         extern int urpsiz, wslotr;
         printf("\n*************************\n");
         printf("RECEIVE- or GET-class command failed.\n");
@@ -3423,8 +3439,12 @@ parser(m) int m;
               case -2:			/* Invalid command given w/args */
 		if (zz == -2 || zz == -6 || (zz == -9 && cmdlvl > 0)) {
 		    int x = 0;
+#ifdef COMMENT
 		    char * eol = "";
+#endif /* COMMENT */
+
 		    x = strlen(cmdbuf);	/* Avoid blank line */
+
 #ifdef COMMENT
 		    if (x > 0) {
 			if (cmdbuf[x-1] != LF)
@@ -3870,8 +3890,7 @@ dooutput(s, cx) char *s; int cx;
                extern int keymac;
                extern int keymacx;
                int x, y, brace = 0;
-               int pause;
-               char * p, * b;
+               char * p;
                char kbuf[K_BUFLEN + 1]; /* Key verb name buffer */
                char osendbuf[SEND_BUFLEN +1];
                int  sendndx = 0;
@@ -4082,7 +4101,7 @@ herald() {
     extern char myherald[];
     extern char * cdmsgfile[];
     extern int srvcdmsg;
-    int x = 0, i;
+    int i;
 
 #ifndef NOCMDL
     extern char * bannerfile;
@@ -4512,7 +4531,10 @@ addmac(nam,def) char *nam, *def;
 {
     int i, x, y, z, namlen, deflen, flag = 0;
     int replacing = 0, deleting = 0;
-    char * p = NULL, c, *s;
+    char * p = NULL, c;
+#ifdef USE_VARLEN
+    char *s;
+#endif /* USE_VARLEN */
     extern int tra_asg; int tra_tmp;
 
     if (!nam) return(-1);
@@ -6249,7 +6271,10 @@ shotrm() {
 
     /* Display colors (should become SHOW COLORS) */
     {
-        USHORT row, col;
+        USHORT row;
+#ifndef ONETERMUPD
+        USHORT col;
+#endif /* ONETERMUPD */
         char * colors[16] = {
             "black","blue","green","cyan","red","magenta","brown","lgray",
             "dgray","lblue","lgreen","lcyan","lred","lmagent","yellow","white"
@@ -7432,8 +7457,7 @@ doshow(x) int x;
         break;
 
       case SHARG: {                     /* Args */
-          char * s, * s1, * s2, * tmpbufp;
-          int t;
+          char * s1, * s2;
           if (maclvl > -1) {
               printf("Macro arguments at level %d (\\v(argc) = %d):\n",
                      maclvl,
@@ -7948,6 +7972,21 @@ doshow(x) int x;
           printf("(no alarm set)\n");
         break;
 #endif /* NOSPL */
+
+#ifdef VMS
+      char *rec_fmt;
+      case SHOVMSTXT:
+
+        if (vms_text == VMSTFS) {
+            rec_fmt = "Stream_LF";
+        } else if (vms_text == VMSTFV) {
+            rec_fmt = "Variable";
+        } else {
+            rec_fmt = "(Unknown?)";
+        }
+        printf("VMS text-file record format: %s\n", rec_fmt);
+        break;
+#endif /* VMS */
 
 #ifndef NOMSEND
       case SHSFL: {
@@ -9202,7 +9241,7 @@ boundspair(char *s, char *sep, int *lo, int *hi, char *zz)
 boundspair(s,sep,lo,hi,zz) char *s, *sep, *zz; int *lo, *hi;
 #endif /* CK_ANSIC */
 {
-    int i, x, y, range[2], bc = 0;
+    int i, y, range[2], bc = 0;
     char c = NUL, *s2 = NULL, buf[256], *p, *q, *r, *e[2], *tmp = NULL;
 
     debug(F110,"boundspair s",s,0);
@@ -9306,9 +9345,8 @@ arraybounds( char * s, int * lo, int * hi )
 arraybounds(s,lo,hi) char * s; int * lo, * hi;
 #endif /* CK_ANSIC */
 {
-    int i, x, y, range[2];
-    char zz, buf[256], * p, * q;
-    char * tmp = NULL;
+    int x, y;
+    char zz;
 
     *lo = -1;                           /* Default bounds */
     *hi = -1;
@@ -9978,7 +10016,6 @@ xwords(s,max,list,flag) char *s; int max; char *list[]; int flag;
     if (macro) {
         struct stringarray * q = NULL;
         char **pp = NULL;
-        int n;
         if (maclvl < 0) {
             debug(F101," xwords maclvl < 0","",maclvl);
             newerrmsg("Internal error: maclvl < 0");
@@ -11615,9 +11652,6 @@ initoptlist() {
 #ifdef VMS64BIT
     makestr(&(optlist[noptlist++]),"VMS64BIT");	/* VMS on non-VAX */
 #endif /* VMS64BIT */
-#ifdef VMSI64
-    makestr(&(optlist[noptlist++]),"VMSI64"); /* VMS on IA64 */
-#endif /* VMSI64 */
 #ifdef _POSIX_SOURCE
     makestr(&(optlist[noptlist++]),"_POSIX_SOURCE");
 #endif /* _POSIX_SOURCE */
@@ -12376,6 +12410,7 @@ shofea() {
     if (inserver)
       return(1);
 
+#ifdef COMMENT
     if (0) {
 #ifdef UNIX
     printf("UNIX defined\n");
@@ -12399,6 +12434,7 @@ printf("NOWTMP not defined\n");
 #endif
     return(1);
       }
+#endif /* COMMENT */
 
     debug(F101,"shofea NOPTLIST","",NOPTLIST);
     initoptlist();

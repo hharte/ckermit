@@ -1,8 +1,13 @@
 /* ckcmai.c - Main program for C-Kermit plus some miscellaneous functions */
 
-#define EDITDATE  "03 Jul 2023"       /* Last edit date dd mmm yyyy */
-#define EDITNDATE "20230703"          /* Keep them in sync */
-/* Mon Jul  3 19:28:58 2023 */
+#ifdef COMMENT
+#define EDITDATE  "8 Aug 2024"       /* Last edit date dd mmm yyyy */
+#else
+#define EDITDATE  "2024/08/08"       /* Last edit date ISO format */
+#endif  /* COMMENT */
+
+#define EDITNDATE "20240808"          /* Keep them in sync */
+/* Thu Aug  8 12:25:04 2024 */
 /*
   As of 27 September 2022 BETATEST is defined in ckcdeb.h, not here,
   because it's also used in other modules.
@@ -13,7 +18,7 @@ FOR NEW VERSION (development, alpha, beta, release candidate, formal release):
   . Change the 3 dates just above;
   . Change ck_cryear = "xxxx"; (copyright year) just below, if necessary;
   . For test versions change ck_s_test and ck_s_tver (below) appropriately:
-     Dev, Alpha, Beta, or RC (Release Candidate);
+     Dev, Alpha, Pre-Beta, Beta, or RC (Release Candidate);
   . Change makefile CKVER and BUILDID definitions and timestamp at top.
 
 If the version number has changed, also:
@@ -40,7 +45,7 @@ If the version number has changed, also:
 */
 #include "ckcdeb.h"                     /* Debug & other symbols */
 
-char * ck_cryear = "2023"; 		/* C-Kermit copyright year */
+char * ck_cryear = "2024"; 		/* C-Kermit copyright year */
 /*
   Note: initialize ck_s_test to "" if this is not a test version.
   Use (*ck_s_test != '\0') to decide whether to print test-related messages.
@@ -58,11 +63,11 @@ char * ck_cryear = "2023"; 		/* C-Kermit copyright year */
    The Windows and non-Windows Betas happen at different times.
 */
 char *ck_s_test = "Beta";
-char *ck_s_tver = "10/Windows-05";
+char *ck_s_tver = "11/Windows-05";
 #else
 /* Can also use "Pre-Beta" here for in between "daily" uploads */
-char *ck_s_test = "Beta";   /* "Dev","Alpha","pre-Beta", "Beta","RC", or "" */
-char *ck_s_tver = "10";                 /* Test version number */
+char *ck_s_test = "Beta"; /* "Dev","Alpha","pre-Beta","Beta","RC", or "" */
+char *ck_s_tver = "11";                 /* Test version number */
 #endif /* OS2 */
 #else /* BETATEST */
 char *ck_s_test = "";			/* Not development */
@@ -81,6 +86,7 @@ char *buildid = EDITNDATE;		/* See top */
 static char sccsid[] = "@(#)C-Kermit 10.0";
 #endif /* UNIX */
 
+int offtsize = 0;                       /* Size of OFF_T */
 /*
   As of C-Kermit 10.0, we no longer use major.minor.edit version number,
   just major.minor.
@@ -103,9 +109,9 @@ static char sccsid[] = "@(#)C-Kermit 10.0";
   Macintosh), just C-Kermit for each platform (except the original Mac).
 */
 char *ck_s_ver = "10.0";                /* C-Kermit version string */
-char *ck_s_edit = "405";                /* Edit number (for Debian package) */
-char *ck_s_xver = "10.0.405";           /* eXtended version string */
-long  ck_l_ver = 1000405L;              /* C-Kermit version number */
+char *ck_s_edit = "414";                /* Edit number (for Debian package) */
+char *ck_s_xver = "10.0.414";           /* eXtended version string */
+long  ck_l_ver = 1000414L;              /* C-Kermit version number */
 char *ck_s_name = "C-Kermit";           /* Name of this program */
 char *ck_s_who = "";                    /* Where customized, "" = not. */
 char *ck_patch = "";                    /* Patch info, if any. */
@@ -589,10 +595,18 @@ ACKNOWLEDGMENTS:
 
 #ifdef NT
 #include <windows.h>
+#include <process.h>                    /* for getpid() */
 #ifndef NODIAL
 #include <tapi.h>
 #include "ckntap.h"
 #endif /* NODIAL */
+
+int setOSVer();                         /* ckotio.c */
+int ttgcwsz();                          /* ckocon.c */
+
+#ifdef CK_LOGIN
+VOID setntcreds();
+#endif /* CK_LOGIN */
 #endif /* NT */
 
 #ifndef NOSERVER
@@ -1348,6 +1362,9 @@ int deblog = 0,                         /* Debug log is open */
     dest   = DEST_D,                    /* Destination for packet data */
     zchkod = 0,                         /* zchko() should work for dirs too? */
     zchkid = 0,                         /* zchki() should work for dirs too? */
+#ifdef VMS
+    vms_text = VMSTFS,                  /* VMS text file dflt fmt: Stream_LF */
+#endif /* VMS */
 
 /* If you change this, also see struct ptab above... */
 
@@ -2707,7 +2724,6 @@ makever ( )
     extern int noherald, backgrd;
     extern char * ckxsys;
     int x, y;
-    char * s;
     char * ssl;                         /* These moved from herald() */
     char * krb4;
     char * krb5;
@@ -3012,11 +3028,11 @@ MAINNAME( argc, argv ) int argc; char **argv;
     *pfha = (short) 0;                  /* No user protection fault handler */
 #endif /* datageneral */
 
+#ifdef UNIX
     int unbuf = 0;			/* nonzero for unbuffered stdout */
 
 /* setbuf has to be called on the file descriptor before it is used */
 
-#ifdef UNIX
 #ifdef NONOSETBUF			/* Unbuffered console i/o */
     unbuf++;				/* as a compile-time option */
 #endif	/* NONOSETBUF */
@@ -3037,6 +3053,20 @@ MAINNAME( argc, argv ) int argc; char **argv;
     if (unbuf)
       setbuf(stdout,NULL);
 #endif	/* UNIX */
+
+    {                      /* Get OFF_T size for printf - fdc 06 Jan 2024 */
+        extern int offtsize; /* MUST be executed, which is why it's here */
+        short x1 = 1;
+        int x2 = 2;
+        long x3 = 3;
+        CK_OFF_T x4 = 4;
+        debug(F101,"sizeof short","",sizeof(x1));
+        debug(F101,"sizeof int","",sizeof(x2));
+        debug(F101,"sizeof long","",sizeof(x3));
+        debug(F101,"sizeof CK_OFF_T","",sizeof(x4));
+        offtsize = x4;
+        debug(F101,"main offtsize","",offtsize);
+    }
 
 /* Do some initialization */
 
@@ -3340,7 +3370,6 @@ MAINNAME( argc, argv ) int argc; char **argv;
         || inserver
 #endif /* IKSD */
         ) {
-        int on = 1, x = 0;
         extern int ckxech, ttnet, ttnproto, cmdmsk;
 #ifdef SO_SNDBUF
         extern int tcp_sendbuf;
@@ -3425,14 +3454,20 @@ MAINNAME( argc, argv ) int argc; char **argv;
 #endif /* CK_AUTHENTICATION */
 
 #ifdef NON_BLOCK_IO
-        on = 1;
-        x = socket_ioctl(0,FIONBIO,&on);
-        debug(F101,"main FIONBIO","",x);
+        {
+            int on, x;
+            on = 1;
+            x = socket_ioctl(0,FIONBIO,&on);
+            debug(F101,"main FIONBIO","",x);
+        }
 #endif /* NON_BLOCK_IO */
 #ifdef SO_OOBINLINE
-        on = 1;
-        x = setsockopt(0, SOL_SOCKET, SO_OOBINLINE, (char *)&on, sizeof(on));
-        debug(F101,"main SO_OOBINLINE","",x);
+        {
+            int on, x;
+            on = 1;
+            x = setsockopt(0,SOL_SOCKET,SO_OOBINLINE,(char *)&on,sizeof(on));
+            debug(F101,"main SO_OOBINLINE","",x);
+        }
 #endif /* SO_OOBINLINE */
 
 #ifndef NOTCPOPTS
